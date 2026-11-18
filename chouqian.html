@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>抽签排序</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='14' fill='%23ffcf5c'/%3E%3Ctext x='16' y='22' font-size='16' text-anchor='middle' fill='%23121733' font-family='sans-serif' font-weight='bold'%3E%E7%AD%BE%3C/text%3E%3C/svg%3E">
+<style>
+:root{
+  --bg-1:#141936;
+  --bg-2:#0b0e22;
+  --card:rgba(255,255,255,.055);
+  --line:rgba(255,255,255,.09);
+  --text:#f2f4ff;
+  --muted:#9aa3c7;
+  --gold:#ffcf5c;
+  --gold-deep:#f0a832;
+  --gold-ink:#241a05;
+  --green:#5bd6a4;
+  --red:#ff7b6b;
+  --radius:18px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(255,207,92,.14) 0%, transparent 55%),
+    radial-gradient(90% 70% at 85% 100%, rgba(91,88,255,.16) 0%, transparent 55%),
+    linear-gradient(160deg, var(--bg-1) 0%, var(--bg-2) 100%);
+  background-attachment:fixed;
+  min-height:100vh;
+  user-select:none;
+  -webkit-user-select:none;
+  overflow-x:hidden;
+}
+button{font-family:inherit;border:none;background:none;color:inherit;cursor:pointer}
+.view{display:none;min-height:100vh;padding:24px 20px calc(40px + env(safe-area-inset-bottom));flex-direction:column;align-items:center}
+.view.active{display:flex}
+
+/* ===== 顶部 ===== */
+.topbar{width:100%;max-width:560px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.brand{font-size:19px;font-weight:800;letter-spacing:2px}
+.brand b{color:var(--gold)}
+.top-actions{display:flex;gap:8px}
+.icon-btn{
+  width:38px;height:38px;border-radius:50%;
+  background:var(--card);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .15s, background .15s;
+}
+.icon-btn:active{transform:scale(.92);background:rgba(255,255,255,.1)}
+.icon-btn svg{width:18px;height:18px;stroke:var(--muted)}
+.icon-btn.sound-on svg{stroke:var(--gold)}
+
+/* ===== 设置页 ===== */
+.setup-wrap{width:100%;max-width:560px;flex:1;display:flex;flex-direction:column;justify-content:center;padding:20px 0}
+.hero-title{font-size:30px;font-weight:900;line-height:1.25;letter-spacing:1px;margin-bottom:10px}
+.hero-sub{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:34px}
+.field{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;margin-bottom:16px}
+.field-label{font-size:13px;color:var(--muted);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.field-label .hint{font-size:12px;opacity:.8}
+.stepper{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:nowrap}
+.stepper-btn{
+  width:44px;height:44px;border-radius:14px;flex:0 0 auto;
+  background:var(--card);border:1px solid var(--line);
+  font-size:22px;font-weight:700;color:var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .12s;
+}
+.stepper-btn.sm{
+  width:40px;height:40px;border-radius:11px;
+  font-size:14px;font-weight:800;color:var(--text);
+  background:rgba(255,255,255,.04);
+}
+.stepper-btn.sm:active{background:rgba(255,255,255,.12)}
+.stepper-btn:active{transform:scale(.9)}
+.stepper-num{font-size:30px;font-weight:800;text-align:center;min-width:56px;font-variant-numeric:tabular-nums}
+textarea{
+  width:100%;min-height:120px;resize:vertical;
+  background:rgba(0,0,0,.22);border:1px solid var(--line);border-radius:12px;
+  color:var(--text);font-family:inherit;font-size:16px;line-height:1.9;
+  padding:12px 14px;outline:none;user-select:text;-webkit-user-select:text;
+}
+textarea:focus{border-color:rgba(255,207,92,.5)}
+.btn-primary{
+  width:100%;max-width:560px;padding:16px;border-radius:16px;
+  background:linear-gradient(135deg,var(--gold) 0%,var(--gold-deep) 100%);
+  color:var(--gold-ink);font-size:17px;font-weight:800;letter-spacing:6px;text-indent:6px;
+  box-shadow:0 10px 26px rgba(240,168,50,.28);
+  transition:transform .12s, box-shadow .2s;
+  margin-top:6px;
+}
+.btn-primary:active{transform:scale(.97)}
+.btn-ghost{
+  padding:11px 18px;border-radius:12px;
+  background:var(--card);border:1px solid var(--line);
+  color:var(--muted);font-size:14px;font-weight:600;
+  transition:transform .12s;
+}
+.btn-ghost:active{transform:scale(.95)}
+
+/* ===== 抽签页 ===== */
+.draw-wrap{width:100%;max-width:560px;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:12px 0 0}
+.turn-info{text-align:center;margin:10px 0 4px}
+.turn-info .turn-label{font-size:15px;color:var(--muted);letter-spacing:2px}
+.turn-info .turn-name{font-size:14px;color:var(--muted);font-weight:500;margin-top:6px;min-height:20px}
+
+.stage{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  width:100%;padding:10px 0;position:relative;
+}
+.draw-btn{
+  position:relative;
+  width:min(56vw,250px);height:min(56vw,250px);
+  border-radius:50%;
+  background:
+    radial-gradient(circle at 32% 26%, #ffe9ad 0%, var(--gold) 42%, var(--gold-deep) 100%);
+  box-shadow:
+    0 18px 44px rgba(240,168,50,.34),
+    inset 0 -8px 18px rgba(150,90,10,.28),
+    inset 0 6px 14px rgba(255,255,255,.45);
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .12s;
+}
+.draw-btn::before{
+  content:"";position:absolute;inset:9px;border-radius:50%;
+  border:2px dashed rgba(36,26,5,.35);
+  pointer-events:none;
+}
+.draw-btn:active{transform:scale(.94)}
+.draw-btn.pulse{animation:breath 1.6s ease-in-out infinite}
+@keyframes breath{
+  0%,100%{box-shadow:0 18px 44px rgba(240,168,50,.34), inset 0 -8px 18px rgba(150,90,10,.28), inset 0 6px 14px rgba(255,255,255,.45)}
+  50%{box-shadow:0 18px 58px rgba(240,168,50,.5), inset 0 -8px 18px rgba(150,90,10,.28), inset 0 6px 14px rgba(255,255,255,.45)}
+}
+.draw-btn .draw-text{
+  font-size:40px;font-weight:900;color:var(--gold-ink);
+  letter-spacing:8px;text-indent:8px;
+}
+.draw-btn .draw-num{
+  display:none;font-size:72px;font-weight:900;color:var(--gold-ink);
+  font-variant-numeric:tabular-nums;text-shadow:0 2px 0 rgba(255,255,255,.35);
+}
+.draw-btn.rolling .draw-num{display:block}
+.draw-btn.rolling .draw-text{display:none}
+.draw-btn.done-num .draw-num{display:block;animation:pop .5s cubic-bezier(.2,1.6,.4,1)}
+.draw-btn.done-num .draw-text{display:none}
+.draw-btn.done-num::before{animation:none;border-style:solid}
+@keyframes pop{0%{transform:scale(.3);opacity:0}100%{transform:scale(1);opacity:1}}
+
+.result-board{
+  width:100%;max-width:560px;flex:0 0 auto;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;margin-top:14px;
+}
+.result-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.result-head .t{font-size:14px;font-weight:700;color:var(--muted);letter-spacing:1px}
+.result-head .rest{font-size:13px;color:var(--gold);font-weight:700}
+.result-list{max-height:176px;overflow-y:auto;display:flex;flex-direction:column;gap:6px}
+.result-empty{color:var(--muted);font-size:13px;text-align:center;padding:14px 0;opacity:.8}
+.result-item{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(0,0,0,.18);border:1px solid var(--line);border-radius:12px;
+  padding:9px 12px;font-size:14px;animation:itemIn .35s ease;
+}
+@keyframes itemIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
+.result-item .idx{
+  flex:0 0 auto;min-width:46px;height:26px;border-radius:8px;
+  background:rgba(255,207,92,.14);border:1px solid rgba(255,207,92,.35);
+  color:var(--gold);font-size:12px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+}
+.result-item .got{flex:1;font-weight:700;font-variant-numeric:tabular-nums}
+.bottom-actions{width:100%;max-width:560px;display:flex;gap:10px;margin-top:16px}
+.bottom-actions .btn-ghost{flex:1;padding:13px 0;text-align:center}
+
+/* ===== 完成页 ===== */
+.done-wrap{width:100%;max-width:560px;flex:1;display:flex;flex-direction:column;padding:10px 0 0}
+.done-title{font-size:24px;font-weight:900;text-align:center;letter-spacing:3px;margin:8px 0 4px}
+.done-title .gold{color:var(--gold)}
+.done-sub{text-align:center;color:var(--muted);font-size:13px;margin-bottom:18px}
+.rank-list{width:100%;display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.rank-item{
+  display:flex;align-items:center;gap:14px;
+  background:var(--card);border:1px solid var(--line);border-radius:14px;
+  padding:12px 16px;animation:itemIn .4s ease backwards;
+}
+.rank-item.top1{background:linear-gradient(135deg, rgba(255,207,92,.22), rgba(255,207,92,.06));border-color:rgba(255,207,92,.45)}
+.rank-item.top2{background:linear-gradient(135deg, rgba(200,205,230,.16), rgba(200,205,230,.05));border-color:rgba(200,205,230,.35)}
+.rank-item.top3{background:linear-gradient(135deg, rgba(216,148,84,.16), rgba(216,148,84,.05));border-color:rgba(216,148,84,.35)}
+.rank-no{
+  flex:0 0 auto;width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;
+  background:rgba(0,0,0,.2);color:var(--gold);
+}
+.top1 .rank-no{background:var(--gold);color:var(--gold-ink)}
+.top2 .rank-no{background:#ccd3ef;color:#20264a}
+.top3 .rank-no{background:#d89454;color:#fff}
+.rank-who{flex:1;font-size:16px;font-weight:700}
+.rank-who .sub{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-top:2px}
+.rank-item .pos{color:var(--gold);font-weight:800;font-variant-numeric:tabular-nums}
+.done-note{color:var(--muted);font-size:12px;text-align:center;margin-bottom:6px}
+
+/* ===== 弹层 ===== */
+.dialog-mask{
+  position:fixed;inset:0;background:rgba(5,8,20,.72);
+  display:none;align-items:center;justify-content:center;z-index:50;
+  padding:28px;
+}
+.dialog-mask.show{display:flex}
+.dialog{
+  width:100%;max-width:340px;background:linear-gradient(160deg,#1c2347,#131736);
+  border:1px solid var(--line);border-radius:20px;padding:26px 22px;
+  text-align:center;animation:itemIn .3s ease;
+}
+.dialog h3{font-size:18px;font-weight:800;margin-bottom:10px}
+.dialog p{color:var(--muted);font-size:14px;line-height:1.8;margin-bottom:20px}
+.dialog-actions{display:flex;gap:10px}
+.dialog-actions .btn-ghost{flex:1;padding:12px 0}
+.dialog-actions .danger{color:var(--red)}
+
+/* ===== 彩带 ===== */
+.confetti{position:fixed;top:-12px;left:0;width:100%;height:100%;pointer-events:none;overflow:hidden;z-index:40}
+.confetti i{
+  position:absolute;top:-12px;width:9px;height:14px;opacity:0;
+  animation:fall linear forwards;
+}
+@keyframes fall{
+  0%{transform:translate3d(0,-12px,0) rotate(0deg);opacity:1}
+  100%{transform:translate3d(var(--dx,40px),105vh,0) rotate(var(--rot,540deg));opacity:.9}
+}
+
+/* ===== toast ===== */
+.toast{
+  position:fixed;left:50%;top:18%;transform:translateX(-50%) translateY(-12px);
+  background:rgba(20,26,54,.95);border:1px solid var(--line);
+  color:var(--text);font-size:14px;padding:11px 20px;border-radius:12px;
+  opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:60;
+  max-width:80%;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.warn{border-color:rgba(255,123,107,.5);color:#ffb3a8}
+
+@media (min-width:640px){
+  .draw-btn{width:250px;height:250px}
+  .draw-btn .draw-num{font-size:80px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ===== 视图：设置 ===== -->
+<section class="view" id="view-setup">
+  <div class="topbar">
+    <div class="brand">抽<b>签</b>排序</div>
+    <div class="top-actions"><button class="icon-btn" id="muteBtn-setup" aria-label="声音开关"></button></div>
+  </div>
+  <div class="setup-wrap">
+    <div class="hero-title">按到场顺序，先到先抽</div>
+    <div class="hero-sub">每人抽到不重复的 1~N 位，位次即出场顺序。</div>
+
+    <div class="field">
+      <div class="field-label"><span>参与人数</span></div>
+      <div class="stepper">
+        <button class="stepper-btn sm" id="minus10Btn" aria-label="减 10">−10</button>
+        <button class="stepper-btn sm" id="minus5Btn" aria-label="减 5">−5</button>
+        <button class="stepper-btn" id="minusBtn" aria-label="减少人数">−</button>
+        <div class="stepper-num" id="countNum">12</div>
+        <button class="stepper-btn" id="plusBtn" aria-label="增加人数">＋</button>
+        <button class="stepper-btn sm" id="plus5Btn" aria-label="加 5">+5</button>
+        <button class="stepper-btn sm" id="plus10Btn" aria-label="加 10">+10</button>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="startBtn">开始抽签</button>
+  </div>
+</section>
+
+<!-- ===== 视图：抽签 ===== -->
+<section class="view" id="view-draw">
+  <div class="topbar">
+    <div class="brand">抽<b>签</b>排序</div>
+    <div class="top-actions">
+      <button class="icon-btn" id="muteBtn-draw" aria-label="声音开关"></button>
+      <button class="icon-btn" id="resetBtn" aria-label="重新开始"></button>
+    </div>
+  </div>
+  <div class="draw-wrap">
+    <div class="turn-info">
+      <div class="turn-label" id="turnLabel">1 号抽签</div>
+      <div class="turn-name" id="turnName">按到场顺序，先到先抽</div>
+    </div>
+    <div class="stage">
+      <button class="draw-btn pulse" id="drawBtn">
+        <span class="draw-text">抽签</span>
+        <span class="draw-num" id="drawNum">0</span>
+      </button>
+    </div>
+    <div class="result-board">
+      <div class="result-head">
+        <span class="t">抽取结果</span>
+        <span class="rest" id="restInfo">剩余 12 人</span>
+      </div>
+      <div class="result-list" id="resultList">
+        <div class="result-empty">还没有人抽签，点上方按钮开始</div>
+      </div>
+    </div>
+    <div class="bottom-actions">
+      <button class="btn-ghost" id="undoBtn">撤销上一签</button>
+      <button class="btn-ghost" id="clearBtn">重新抽签</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 视图：完成 ===== -->
+<section class="view" id="view-done">
+  <div class="topbar">
+    <div class="brand">抽<b>签</b>排序</div>
+    <div class="top-actions">
+      <button class="icon-btn" id="muteBtn-done" aria-label="声音开关"></button>
+      <button class="icon-btn" id="resetBtn2" aria-label="重新开始"></button>
+    </div>
+  </div>
+  <div class="done-wrap">
+    <div class="done-title">抽签完成<span class="gold"> · 最终排序</span></div>
+    <div class="done-sub" id="doneSub"></div>
+    <div class="rank-list" id="rankList"></div>
+    <div class="done-note">号码即名次：抽到 1 号的排第 1 位，2 号第 2 位，依次类推。</div>
+    <button class="btn-primary" id="againBtn">再来一轮</button>
+  </div>
+</section>
+
+<!-- ===== 弹层：确认 ===== -->
+<div class="dialog-mask" id="dialogMask">
+  <div class="dialog">
+    <h3 id="dialogTitle">确认重新开始？</h3>
+    <p id="dialogMsg">当前抽签结果将被清空，所有号码重新洗牌。</p>
+    <div class="dialog-actions">
+      <button class="btn-ghost" id="dialogCancel">取消</button>
+      <button class="btn-ghost danger" id="dialogOk">清空重来</button>
+    </div>
+  </div>
+</div>
+
+<div class="confetti" id="confetti" aria-hidden="true"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== 状态 ===== */
+var LS_KEY = "chouqian-sort-v2";
+var state = {
+  count: 12,
+  order: [],      // 打乱后的号码池，依次发放
+  drawn: [],      // 已抽号码：drawn[i] = (i+1)号抽到的名次
+  phase: "setup"  // setup | draw | done
+};
+var soundOn = true;
+
+/* ===== 工具 ===== */
+function $(id){ return document.getElementById(id); }
+function toast(msg, warn){
+  var t = $("toast");
+  t.textContent = msg;
+  t.className = "toast show" + (warn ? " warn" : "");
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){ t.className = "toast"; }, 2200);
+}
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({state:state, soundOn:soundOn})); }catch(e){}
+}
+function load(){
+  try{
+    var raw = localStorage.getItem(LS_KEY);
+    if(raw){
+      var d = JSON.parse(raw);
+      if(d && d.state){ state = d.state; soundOn = d.soundOn !== false; }
+    }
+  }catch(e){}
+}
+function shuffle(arr){
+  for(var i=arr.length-1;i>0;i--){
+    var j = Math.floor(Math.random()*(i+1));
+    var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+  }
+  return arr;
+}
+
+/* ===== 音效 ===== */
+var audioCtx = null;
+function beep(freq, dur, type, vol){
+  if(!soundOn) return;
+  try{
+    audioCtx = audioCtx || new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state === "suspended") audioCtx.resume();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = type || "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol||0.12, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + (dur||0.18));
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(); o.stop(audioCtx.currentTime + (dur||0.18));
+  }catch(e){}
+}
+function tickSound(){ beep(660, 0.05, "square", 0.05); }
+function winSound(){
+  beep(784,0.16,"sine",0.14);
+  setTimeout(function(){beep(988,0.16,"sine",0.14);},110);
+  setTimeout(function(){beep(1319,0.3,"sine",0.14);},220);
+}
+function vibrate(ms){ try{ if(navigator.vibrate) navigator.vibrate(ms); }catch(e){} }
+
+/* ===== 视图切换 ===== */
+var views = ["view-setup","view-draw","view-done"];
+function showView(name){
+  state.phase = name;
+  views.forEach(function(v){
+    $(v).classList.toggle("active", v === ("view-" + name));
+  });
+  save();
+}
+
+/* ===== 图标 ===== */
+var ICON_SOUND_ON = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+var ICON_SOUND_OFF = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>';
+var ICON_RESET = '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>';
+function syncMuteBtns(){
+  ["muteBtn-setup","muteBtn-draw","muteBtn-done"].forEach(function(id){
+    var b = $(id);
+    b.innerHTML = soundOn ? ICON_SOUND_ON : ICON_SOUND_OFF;
+    b.classList.toggle("sound-on", soundOn);
+  });
+}
+function bindMute(){
+  ["muteBtn-setup","muteBtn-draw","muteBtn-done"].forEach(function(id){
+    $(id).addEventListener("click", function(){
+      soundOn = !soundOn; syncMuteBtns(); save();
+      if(soundOn) beep(880,0.1,"sine",0.1);
+    });
+  });
+}
+
+/* ===== 设置页 ===== */
+function setupCountUI(){
+  $("countNum").textContent = state.count;
+}
+function adjust(delta){
+  var next = state.count + delta;
+  if(next < 2){
+    if(state.count !== 2){ state.count = 2; setupCountUI(); }
+    toast("最少 2 人", true);
+    return;
+  }
+  if(next > 50){
+    if(state.count !== 50){ state.count = 50; setupCountUI(); }
+    toast("最多 50 人", true);
+    return;
+  }
+  state.count = next;
+  setupCountUI();
+}
+$("minusBtn").addEventListener("click", function(){ adjust(-1); });
+$("plusBtn").addEventListener("click", function(){ adjust(1); });
+$("minus5Btn").addEventListener("click", function(){ adjust(-5); });
+$("plus5Btn").addEventListener("click", function(){ adjust(5); });
+$("minus10Btn").addEventListener("click", function(){ adjust(-10); });
+$("plus10Btn").addEventListener("click", function(){ adjust(10); });
+$("startBtn").addEventListener("click", function(){ beginRound(); });
+
+/* ===== 开始一轮 ===== */
+function beginRound(){
+  rolling = false;
+  var n = state.count;
+  var pool = [];
+  for(var i=1;i<=n;i++) pool.push(i);
+  state.order = shuffle(pool);
+  state.drawn = [];
+  showView("draw");
+  renderTurn(); renderList();
+}
+
+/* ===== 抽签页渲染 ===== */
+function updateRest(){
+  var left = state.order.length;
+  $("restInfo").textContent = left + " 人未抽 · 剩 " + left + " 个号";
+}
+function renderTurn(){
+  var left = state.order.length;
+  var total = state.count;
+  var cur = total - left + 1;
+  $("turnLabel").textContent = left === 0 ? "全部抽完" : cur + " 号抽签";
+  $("turnName").textContent = "按到场顺序，先到先抽";
+  updateRest();
+  $("drawNum").textContent = "";
+  var btn = $("drawBtn");
+  btn.classList.remove("rolling","done-num");
+  btn.classList.add("pulse");
+  $("undoBtn").disabled = false;
+}
+function renderList(){
+  var list = $("resultList");
+  if(state.drawn.length === 0){
+    list.innerHTML = '<div class="result-empty">还没有人抽签，点上方按钮开始</div>';
+    return;
+  }
+  var html = "";
+  state.drawn.forEach(function(num, i){
+    html += '<div class="result-item">' +
+      '<span class="idx">' + (i+1) + ' 号</span>' +
+      '<span class="got">抽到 第 ' + num + ' 位</span>' +
+      '</div>';
+  });
+  list.innerHTML = html;
+  list.scrollTop = list.scrollHeight;
+}
+
+/* ===== 抽签动作 ===== */
+var rolling = false;
+$("drawBtn").addEventListener("click", function(){
+  if(rolling) return;
+  if(state.order.length === 0){ showView("done"); return; }
+  var btn = $("drawBtn");
+  var numEl = $("drawNum");
+  var finalNum = state.order[state.order.length - 1]; // 取池中最后一个
+  state.order.pop();
+
+  rolling = true;
+  btn.classList.remove("pulse","done-num");
+  btn.classList.add("rolling");
+  var t0 = Date.now();
+  var rollTimer = setInterval(function(){
+    numEl.textContent = 1 + Math.floor(Math.random() * state.count);
+    tickSound();
+    if(Date.now() - t0 > 800){
+      clearInterval(rollTimer);
+      // 定格展示抽到的号码
+      numEl.textContent = finalNum;
+      btn.classList.remove("rolling");
+      btn.classList.add("done-num");
+      state.drawn.push(finalNum);
+      renderList();
+      $("turnLabel").textContent = state.drawn.length + " 号抽到第 " + finalNum + " 位";
+      updateRest();
+      beep(880, 0.22, "sine", 0.14);
+      vibrate(40);
+      if(state.order.length === 0){
+        setTimeout(function(){
+          showView("done"); renderRank(); winSound(); confettiBurst();
+        }, 1000);
+      }else{
+        setTimeout(function(){
+          renderTurn();
+          rolling = false;
+        }, 1300);
+      }
+    }
+  }, 55);
+});
+
+$("undoBtn").addEventListener("click", function(){
+  if(rolling) return;
+  if(state.drawn.length === 0){ toast("还没有可撤销的签", true); return; }
+  state.drawn.pop();
+  // 重建号码池：排除已抽号码，剩余重新洗牌
+  var used = {};
+  state.drawn.forEach(function(num){ used[num] = true; });
+  var pool = [];
+  for(var i=1;i<=state.count;i++){ if(!used[i]) pool.push(i); }
+  state.order = shuffle(pool);
+  renderTurn(); renderList();
+});
+
+$("clearBtn").addEventListener("click", function(){ askReset(); });
+
+/* ===== 完成页 ===== */
+function renderRank(){
+  // rankArr[num] = 抽到这个名次的几号
+  var rankArr = [];
+  state.drawn.forEach(function(num, i){ rankArr[num] = i + 1; });
+  var html = "";
+  for(var num=1; num<=state.count; num++){
+    var who = rankArr[num];
+    var cls = num===1 ? "top1" : (num===2 ? "top2" : (num===3 ? "top3" : ""));
+    html += '<div class="rank-item ' + cls + '" style="animation-delay:' + ((num-1)*0.05) + 's">' +
+      '<span class="rank-no">' + num + '</span>' +
+      '<span class="rank-who">' + who + ' 号<span class="sub">' + who + ' 号抽到</span></span>' +
+      '<span class="pos">第 ' + num + ' 位</span>' +
+      '</div>';
+  }
+  $("rankList").innerHTML = html;
+  $("doneSub").textContent = state.count + " 人全部抽完";
+}
+
+/* ===== 重置确认 ===== */
+function resetToSetup(){
+  // 回到人数设置页，重新输入总人数后再开始
+  state.drawn = [];
+  state.order = [];
+  showView("setup");
+}
+function askReset(){
+  var mask = $("dialogMask");
+  $("dialogTitle").textContent = "确认重新开始？";
+  $("dialogMsg").textContent = "当前抽签结果将被清空，回到人数设置页重新开始。";
+  mask.classList.add("show");
+}
+$("dialogCancel").addEventListener("click", function(){ $("dialogMask").classList.remove("show"); });
+$("dialogOk").addEventListener("click", function(){
+  $("dialogMask").classList.remove("show");
+  resetToSetup();
+});
+$("againBtn").addEventListener("click", function(){ resetToSetup(); });
+$("resetBtn").addEventListener("click", askReset);
+$("resetBtn2").addEventListener("click", askReset);
+
+/* ===== 彩带 ===== */
+function confettiBurst(){
+  var box = $("confetti");
+  box.innerHTML = "";
+  var colors = ["#ffcf5c","#5bd6a4","#7b8cff","#ff7b6b","#ffffff"];
+  for(var i=0;i<60;i++){
+    var el = document.createElement("i");
+    var c = colors[i % colors.length];
+    el.style.background = c;
+    el.style.left = (Math.random()*100) + "%";
+    el.style.animationDuration = (2.2 + Math.random()*1.6) + "s";
+    el.style.animationDelay = (Math.random()*0.5) + "s";
+    el.style.setProperty("--dx", (Math.random()*160-80) + "px");
+    el.style.setProperty("--rot", (Math.random()*720-360) + "deg");
+    box.appendChild(el);
+  }
+  setTimeout(function(){ box.innerHTML = ""; }, 5000);
+}
+
+/* ===== 初始化 ===== */
+load();
+// 兼容旧版数据结构：drawn 曾是对象数组，迁移为纯号码数组
+if(!Array.isArray(state.drawn) || (state.drawn.length && typeof state.drawn[0] !== "number")){
+  state.drawn = [];
+  state.order = [];
+  state.phase = "setup";
+}
+if(!state.order || !state.order.length || state.phase === "setup"){
+  // 确保状态结构完整
+  if(!state.order) state.order = [];
+  if(!state.drawn) state.drawn = [];
+  if(!state.count || state.count < 2) state.count = 12;
+}
+setupCountUI();
+syncMuteBtns();
+bindMute();
+if(state.phase === "draw" && state.order.length > 0){ showView("draw"); renderTurn(); renderList(); }
+else if(state.phase === "draw" && state.order.length === 0){ showView("done"); renderRank(); }
+else if(state.phase === "done"){ showView("done"); renderRank(); }
+else { showView("setup"); }
+</script>
+</body>
+</html>
